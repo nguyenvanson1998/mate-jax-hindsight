@@ -1,0 +1,21 @@
+{
+ "config": "MATE-4v8-9.yaml",
+ "episode": 3,
+ "steps": 1000,
+ "coverage": {
+  "greedy": {
+   "rule": 0.6213750243186951,
+   "option": 0.7417500019073486,
+   "foresight": 0.8523749709129333,
+   "hindsight": 0.8945000171661377,
+   "hindsight_planned": 0.893500030040741
+  },
+  "waypoint": {
+   "rule": 0.7227500081062317,
+   "option": 0.7442499995231628,
+   "foresight": 0.8927500247955322,
+   "hindsight": 0.9213749766349792,
+   "hindsight_planned": 0.9206250309944153
+  }
+ }
+}

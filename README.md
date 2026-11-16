@@ -20,6 +20,33 @@ re-implementation of the MATE benchmark, checked against the original by replayi
 case study the repository contains FORESIGHT, a planner in which every camera plans its pose trajectory by
 a Viterbi recursion, shares its plan with a short message and best-responds to the plans of the others.
 
+## Example episodes
+
+One recorded episode of MATE-4v8-9 (four cameras, eight targets, 1000 steps) for three controllers and the
+hindsight schedule. All four panels replay the same target trajectories. Blue sectors are what each camera
+senses, grey parts of a sector are hidden by obstacles, filled red dots are covered targets and open dots are
+missed ones. The plot below the panels shows the mean coverage so far. The hindsight schedule is computed
+offline by `research/clairvoyant.py` with every future target position known. It is the lower end of the
+bracket on the clairvoyant optimum, a reference and not a controller.
+
+**Goal-directed targets**
+
+![Goal-directed targets: rule-based cameras, option-level planning, FORESIGHT and the hindsight schedule on the same episode](media/episode_greedy.gif)
+
+**Random-waypoint (RWP) targets**
+
+![RWP targets: rule-based cameras, option-level planning, FORESIGHT and the hindsight schedule on the same episode](media/episode_waypoint.gif)
+
+| Coverage in this episode | MATE rule-based cameras | Option-level planning | FORESIGHT | Hindsight schedule (reference) |
+| --- | --- | --- | --- | --- |
+| Goal-directed targets | 0.621 | 0.742 | 0.852 | 0.895 |
+| RWP targets | 0.723 | 0.744 | 0.893 | 0.921 |
+
+These are single episodes. The paper reports means over 32 paired episodes, together with the MARL
+baselines and the Lagrangian upper bound. MP4 versions: [goal-directed](media/episode_greedy.mp4),
+[RWP](media/episode_waypoint.mp4). To render them again (CPU, about three minutes, needs `matplotlib` and
+`ffmpeg`): `python paper/make_videos.py`.
+
 ## What is in this repository
 
 | Path | Content |
@@ -31,7 +58,8 @@ a Viterbi recursion, shares its plan with a short message and best-responds to t
 | `research/` | Experiment scripts. The main ones are `eval_foresight.py` (controllers on paired episodes), `clairvoyant.py` (hindsight bound and Lagrangian bound), `exact_pair.py` (exact optimum for two cameras), `headroom.py` (oracle planners), `bench_foresight.py` (latency), `parity_multistep.py` (MATE-JAX vs. MATE), `train_forecaster.py` (learned forecaster). `run_paper_experiments.sh` runs the experiments of the paper. See also [`research/README.md`](research/README.md). |
 | `results/paper/` | The JSON result files used in the paper. |
 | `results/` (other) | Smaller result files read by the table scripts (learning curves `*.jsonl`, policy evaluations, communication study) and the two trained forecasters (`results/forecaster_{greedy,waypoint}/forecaster.msgpack`, used by the `traj-2-forecast` variant). `results/simpat_chain/*.sh` are the scripts of the last group of experiments. |
-| `paper/` | The scripts that write the tables and figures of the paper from `results/`, and `regenerate.sh` to run them. |
+| `paper/` | The scripts that write the tables and figures of the paper from `results/`, and `regenerate.sh` to run them. `make_videos.py` renders the example episodes above. |
+| `media/` | The example episodes (`episode_{greedy,waypoint}.{gif,mp4}`) and their coverage (`episodes.json`). |
 | `tests/jax/` | Unit tests, parity tests with MATE, trainer and FORESIGHT tests. |
 | `scripts/` | Upstream MATE training scripts (RLlib) and `jax.*.sh` launchers for MATE-JAX. |
 | `docs/` | Upstream MATE documentation. The upstream README is in [`docs/MATE_README.md`](docs/MATE_README.md). |

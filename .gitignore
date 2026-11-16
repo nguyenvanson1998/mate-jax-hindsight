@@ -32,9 +32,11 @@ ray_results/
 id_rsa*
 id_ed25519*
 
-# Rollout video results
+# Rollout video results (the README animations in media/ are kept)
 *.gif
 *.mp4
+!media/*.gif
+!media/*.mp4
 *.meta.json
 openaigym.*.stats.json
 openaigym.*.manifest.json
