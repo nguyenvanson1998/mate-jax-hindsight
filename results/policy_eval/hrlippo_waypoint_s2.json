@@ -1,0 +1,28 @@
+[
+  {
+    "run": "hrlippo_waypoint_s2",
+    "targets": "waypoint",
+    "critic": "local",
+    "seed": 2,
+    "mode": "deterministic",
+    "reward": 0.7805010795593261,
+    "coverage_rate": 0.7982406616210938,
+    "tx_rate": 0.0,
+    "collision_rate": 0.0,
+    "actuation": 0.3547919988632202,
+    "seconds": 57.605641745001776
+  },
+  {
+    "run": "hrlippo_waypoint_s2",
+    "targets": "waypoint",
+    "critic": "local",
+    "seed": 2,
+    "mode": "stochastic",
+    "reward": 0.7619347095489502,
+    "coverage_rate": 0.7945875525474548,
+    "tx_rate": 0.0794062539935112,
+    "collision_rate": 0.008066668175160885,
+    "actuation": 0.49424466490745544,
+    "seconds": 58.903535931996885
+  }
+]

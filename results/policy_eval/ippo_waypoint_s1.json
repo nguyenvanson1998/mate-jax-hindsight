@@ -1,0 +1,28 @@
+[
+  {
+    "run": "ippo_waypoint_s1",
+    "targets": "waypoint",
+    "critic": "local",
+    "seed": 1,
+    "mode": "deterministic",
+    "reward": 0.6454687595367432,
+    "coverage_rate": 0.6454687714576721,
+    "tx_rate": 0.0,
+    "collision_rate": 0.0,
+    "actuation": 0.32871875166893005,
+    "seconds": 2.9434123449900653
+  },
+  {
+    "run": "ippo_waypoint_s1",
+    "targets": "waypoint",
+    "critic": "local",
+    "seed": 1,
+    "mode": "stochastic",
+    "reward": 0.6104437828063964,
+    "coverage_rate": 0.6104437708854675,
+    "tx_rate": 0.0,
+    "collision_rate": 0.0,
+    "actuation": 0.37983596324920654,
+    "seconds": 2.853160045007826
+  }
+]

@@ -1,0 +1,112 @@
+[
+  {
+    "targets": "greedy",
+    "method": "periodic-4",
+    "reward": 0.7518277645111084,
+    "coverage_rate": 0.7663280367851257,
+    "tx_rate": 0.25,
+    "intent_rate": 0.04999995976686478,
+    "collision_rate": 0.0,
+    "actuation": 0.46618330478668213,
+    "seconds": 116.92509187501855
+  },
+  {
+    "targets": "greedy",
+    "method": "event-slot",
+    "reward": 0.7554686069488525,
+    "coverage_rate": 0.7689608335494995,
+    "tx_rate": 0.2371874898672104,
+    "intent_rate": 0.04081249609589577,
+    "collision_rate": 0.0,
+    "actuation": 0.46658602356910706,
+    "seconds": 29.283846290956717
+  },
+  {
+    "targets": "greedy",
+    "method": "event",
+    "reward": 0.7280125617980957,
+    "coverage_rate": 0.7680702209472656,
+    "tx_rate": 0.6898437142372131,
+    "intent_rate": 0.1391250044107437,
+    "collision_rate": 0.3792291283607483,
+    "actuation": 0.49026602506637573,
+    "seconds": 33.428661291021854
+  },
+  {
+    "targets": "greedy",
+    "method": "always",
+    "reward": 0.7047653198242188,
+    "coverage_rate": 0.762765645980835,
+    "tx_rate": 1.0,
+    "intent_rate": 0.1999998390674591,
+    "collision_rate": 0.5772187113761902,
+    "actuation": 0.5187029242515564,
+    "seconds": 30.581021332996897
+  },
+  {
+    "targets": "greedy",
+    "method": "never",
+    "reward": 0.590234375,
+    "coverage_rate": 0.5902343988418579,
+    "tx_rate": 0.0,
+    "intent_rate": 0.0,
+    "collision_rate": 0.0,
+    "actuation": 0.3694767355918884,
+    "seconds": 31.212100625038147
+  },
+  {
+    "targets": "waypoint",
+    "method": "periodic-4",
+    "reward": 0.862155818939209,
+    "coverage_rate": 0.8766562342643738,
+    "tx_rate": 0.25,
+    "intent_rate": 0.04999995976686478,
+    "collision_rate": 0.0,
+    "actuation": 0.4797995984554291,
+    "seconds": 29.492702707997523
+  },
+  {
+    "targets": "waypoint",
+    "method": "event-slot",
+    "reward": 0.8529129028320312,
+    "coverage_rate": 0.866390585899353,
+    "tx_rate": 0.23640625178813934,
+    "intent_rate": 0.041421860456466675,
+    "collision_rate": 0.0,
+    "actuation": 0.4780793786048889,
+    "seconds": 29.11944045801647
+  },
+  {
+    "targets": "waypoint",
+    "method": "event",
+    "reward": 0.8474849700927735,
+    "coverage_rate": 0.8850234746932983,
+    "tx_rate": 0.6489062309265137,
+    "intent_rate": 0.12731251120567322,
+    "collision_rate": 0.3476874828338623,
+    "actuation": 0.4762771427631378,
+    "seconds": 29.893622584000695
+  },
+  {
+    "targets": "waypoint",
+    "method": "always",
+    "reward": 0.7722417831420898,
+    "coverage_rate": 0.8302422761917114,
+    "tx_rate": 1.0,
+    "intent_rate": 0.1999998390674591,
+    "collision_rate": 0.5772187113761902,
+    "actuation": 0.6313369274139404,
+    "seconds": 29.524661541974638
+  },
+  {
+    "targets": "waypoint",
+    "method": "never",
+    "reward": 0.7581093788146973,
+    "coverage_rate": 0.7581093907356262,
+    "tx_rate": 0.0,
+    "intent_rate": 0.0,
+    "collision_rate": 0.0,
+    "actuation": 0.3473840355873108,
+    "seconds": 29.276121874980163
+  }
+]

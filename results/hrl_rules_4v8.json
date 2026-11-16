@@ -1,0 +1,82 @@
+[
+  {
+    "targets": "greedy",
+    "rule": "always",
+    "reward": 0.5685373783111572,
+    "coverage_rate": 0.6880701184272766,
+    "tx_rate": 1.0,
+    "collision_rate": 0.5789217948913574,
+    "actuation": 0.3906642198562622,
+    "seconds": 73.16656183700252
+  },
+  {
+    "targets": "greedy",
+    "rule": "event",
+    "reward": 0.6030170917510986,
+    "coverage_rate": 0.6919452548027039,
+    "tx_rate": 0.6976562142372131,
+    "collision_rate": 0.3796039819717407,
+    "actuation": 0.3832594156265259,
+    "seconds": 64.43917414000316
+  },
+  {
+    "targets": "greedy",
+    "rule": "periodic-4",
+    "reward": 0.6449783325195313,
+    "coverage_rate": 0.6887342929840088,
+    "tx_rate": 0.25,
+    "collision_rate": 0.0,
+    "actuation": 0.37512868642807007,
+    "seconds": 64.99296206400322
+  },
+  {
+    "targets": "greedy",
+    "rule": "never",
+    "reward": 0.6050135135650635,
+    "coverage_rate": 0.6209998726844788,
+    "tx_rate": 0.0,
+    "collision_rate": 0.0,
+    "actuation": 0.31973832845687866,
+    "seconds": 66.40685832200688
+  },
+  {
+    "targets": "waypoint",
+    "rule": "always",
+    "reward": 0.6978600502014161,
+    "coverage_rate": 0.8199453353881836,
+    "tx_rate": 1.0,
+    "collision_rate": 0.5789217948913574,
+    "actuation": 0.4417117238044739,
+    "seconds": 58.99343754799338
+  },
+  {
+    "targets": "waypoint",
+    "rule": "event",
+    "reward": 0.7325128078460693,
+    "coverage_rate": 0.8208205103874207,
+    "tx_rate": 0.6637499928474426,
+    "collision_rate": 0.36243736743927,
+    "actuation": 0.4386552572250366,
+    "seconds": 62.81656424699759
+  },
+  {
+    "targets": "waypoint",
+    "rule": "periodic-4",
+    "reward": 0.7725964069366456,
+    "coverage_rate": 0.819312572479248,
+    "tx_rate": 0.25,
+    "collision_rate": 0.0,
+    "actuation": 0.43432578444480896,
+    "seconds": 64.49004887400952
+  },
+  {
+    "targets": "waypoint",
+    "rule": "never",
+    "reward": 0.8008432388305664,
+    "coverage_rate": 0.820382833480835,
+    "tx_rate": 0.0,
+    "collision_rate": 0.0,
+    "actuation": 0.39079904556274414,
+    "seconds": 62.63735683899722
+  }
+]

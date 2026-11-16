@@ -1,0 +1,44 @@
+[
+  {
+    "targets": "greedy",
+    "mode": "foresight",
+    "coverage": 0.8173593878746033,
+    "coverage_se": 0.007608391344547272,
+    "delta_vs_foresight": 0.0,
+    "delta_se": 0.0,
+    "ceiling": 0.9866015911102295,
+    "seconds": 331.59936480398756,
+    "teleport": 0.9464687705039978
+  },
+  {
+    "targets": "greedy",
+    "mode": "oracle-future",
+    "coverage": 0.8231406211853027,
+    "coverage_se": 0.005494656506925821,
+    "delta_vs_foresight": 0.005781237035989761,
+    "delta_se": 0.0064141103066504,
+    "ceiling": 0.9866015911102295,
+    "seconds": 135.87876850100292
+  },
+  {
+    "targets": "waypoint",
+    "mode": "foresight",
+    "coverage": 0.9247344136238098,
+    "coverage_se": 0.00871526449918747,
+    "delta_vs_foresight": 0.0,
+    "delta_se": 0.0,
+    "ceiling": 0.9911640882492065,
+    "seconds": 191.2476796770061,
+    "teleport": 0.9865625500679016
+  },
+  {
+    "targets": "waypoint",
+    "mode": "oracle-future",
+    "coverage": 0.9088984727859497,
+    "coverage_se": 0.00852072425186634,
+    "delta_vs_foresight": -0.015835944563150406,
+    "delta_se": 0.005083669908344746,
+    "ceiling": 0.9911640882492065,
+    "seconds": 85.98729655701027
+  }
+]

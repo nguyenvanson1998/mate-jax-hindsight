@@ -1,0 +1,8 @@
+# Minimal requirements of MATE-JAX (mate_jax/), e.g. on a Cloud TPU VM:
+#   pip install -r requirements-jax.txt          # CPU / generic
+#   pip install "jax[tpu]" -r requirements-jax.txt  # TPU VM
+numpy >= 1.21
+pyyaml >= 5.1
+jax >= 0.4.30
+flax >= 0.8.0
+optax >= 0.2.0

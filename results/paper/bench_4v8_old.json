@@ -1,0 +1,82 @@
+[
+  {
+    "config": "MATE-4v8-9.yaml",
+    "variant": "greedy",
+    "batch": 1,
+    "env_steps_per_second": 4694.109638965096,
+    "ms_per_step": 0.21303294488461688,
+    "compile_and_run_seconds": 6.250051543000154
+  },
+  {
+    "config": "MATE-4v8-9.yaml",
+    "variant": "greedy",
+    "batch": 32,
+    "env_steps_per_second": 141349.683196254,
+    "ms_per_step": 0.22638890499365516,
+    "compile_and_run_seconds": 5.9662246969819535
+  },
+  {
+    "config": "MATE-4v8-9.yaml",
+    "variant": "foresight",
+    "batch": 1,
+    "env_steps_per_second": 1636.2413049999993,
+    "ms_per_step": 0.6111568000051193,
+    "compile_and_run_seconds": 125.64960002299631
+  },
+  {
+    "config": "MATE-4v8-9.yaml",
+    "variant": "foresight",
+    "batch": 32,
+    "env_steps_per_second": 2837.260975049362,
+    "ms_per_step": 11.278483115020208,
+    "compile_and_run_seconds": 131.3332031450118
+  },
+  {
+    "config": "MATE-4v8-9.yaml",
+    "variant": "traj-1",
+    "batch": 1,
+    "env_steps_per_second": 303.8104311395737,
+    "ms_per_step": 3.291526219982188,
+    "compile_and_run_seconds": 129.84483502598596
+  },
+  {
+    "config": "MATE-4v8-9.yaml",
+    "variant": "traj-1",
+    "batch": 32,
+    "env_steps_per_second": 1165.863355969846,
+    "ms_per_step": 27.44747043994721,
+    "compile_and_run_seconds": 136.58320188501966
+  },
+  {
+    "config": "MATE-4v8-9.yaml",
+    "variant": "traj-2",
+    "batch": 1,
+    "env_steps_per_second": 156.94860250990885,
+    "ms_per_step": 6.371512609912315,
+    "compile_and_run_seconds": 131.4431757069833
+  },
+  {
+    "config": "MATE-4v8-9.yaml",
+    "variant": "traj-2",
+    "batch": 32,
+    "env_steps_per_second": 592.4045392568827,
+    "ms_per_step": 54.01714179999544,
+    "compile_and_run_seconds": 142.38920824500383
+  },
+  {
+    "config": "MATE-4v8-9.yaml",
+    "variant": "traj-3",
+    "batch": 1,
+    "env_steps_per_second": 101.90995401448912,
+    "ms_per_step": 9.812584155006334,
+    "compile_and_run_seconds": 131.29783051498816
+  },
+  {
+    "config": "MATE-4v8-9.yaml",
+    "variant": "traj-3",
+    "batch": 32,
+    "env_steps_per_second": 397.2910564055415,
+    "ms_per_step": 80.54548292508116,
+    "compile_and_run_seconds": 147.53141422002227
+  }
+]

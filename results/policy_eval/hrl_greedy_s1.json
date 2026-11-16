@@ -1,0 +1,28 @@
+[
+  {
+    "run": "hrl_greedy_s1",
+    "targets": "greedy",
+    "critic": "centralized",
+    "seed": 1,
+    "mode": "deterministic",
+    "reward": 0.6231618881225586,
+    "coverage_rate": 0.6433488130569458,
+    "tx_rate": 0.004000000189989805,
+    "collision_rate": 0.0,
+    "actuation": 0.3808620274066925,
+    "seconds": 69.8939622839971
+  },
+  {
+    "run": "hrl_greedy_s1",
+    "targets": "greedy",
+    "critic": "centralized",
+    "seed": 1,
+    "mode": "stochastic",
+    "reward": 0.6398209571838379,
+    "coverage_rate": 0.6953844428062439,
+    "tx_rate": 0.2849375009536743,
+    "collision_rate": 0.09427709132432938,
+    "actuation": 0.5251117944717407,
+    "seconds": 70.34840455799713
+  }
+]

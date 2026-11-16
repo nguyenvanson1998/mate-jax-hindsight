@@ -1,0 +1,28 @@
+[
+  {
+    "run": "mappo_greedy_s1",
+    "targets": "greedy",
+    "critic": "centralized",
+    "seed": 1,
+    "mode": "deterministic",
+    "reward": 0.4322656631469727,
+    "coverage_rate": 0.4329283833503723,
+    "tx_rate": 0.0,
+    "collision_rate": 0.0,
+    "actuation": 0.46625784039497375,
+    "seconds": 3.8404599420027807
+  },
+  {
+    "run": "mappo_greedy_s1",
+    "targets": "greedy",
+    "critic": "centralized",
+    "seed": 1,
+    "mode": "stochastic",
+    "reward": 0.38678750991821287,
+    "coverage_rate": 0.38744011521339417,
+    "tx_rate": 0.0,
+    "collision_rate": 0.0,
+    "actuation": 0.5554531216621399,
+    "seconds": 3.6236712249956327
+  }
+]

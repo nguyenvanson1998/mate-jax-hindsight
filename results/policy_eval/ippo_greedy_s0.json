@@ -1,0 +1,28 @@
+[
+  {
+    "run": "ippo_greedy_s0",
+    "targets": "greedy",
+    "critic": "local",
+    "seed": 0,
+    "mode": "deterministic",
+    "reward": 0.40807814598083497,
+    "coverage_rate": 0.40870755910873413,
+    "tx_rate": 0.0,
+    "collision_rate": 0.0,
+    "actuation": 0.5905469059944153,
+    "seconds": 3.238468654002645
+  },
+  {
+    "run": "ippo_greedy_s0",
+    "targets": "greedy",
+    "critic": "local",
+    "seed": 0,
+    "mode": "stochastic",
+    "reward": 0.3551000118255615,
+    "coverage_rate": 0.35549691319465637,
+    "tx_rate": 0.0,
+    "collision_rate": 0.0,
+    "actuation": 0.6106172204017639,
+    "seconds": 3.25562915399496
+  }
+]

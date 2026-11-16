@@ -1,0 +1,28 @@
+[
+  {
+    "run": "hrl_waypoint_s2",
+    "targets": "waypoint",
+    "critic": "centralized",
+    "seed": 2,
+    "mode": "deterministic",
+    "reward": 0.7847470760345459,
+    "coverage_rate": 0.8028063178062439,
+    "tx_rate": 0.0,
+    "collision_rate": 0.0,
+    "actuation": 0.3611847758293152,
+    "seconds": 69.6391803400038
+  },
+  {
+    "run": "hrl_waypoint_s2",
+    "targets": "waypoint",
+    "critic": "centralized",
+    "seed": 2,
+    "mode": "stochastic",
+    "reward": 0.7654989242553711,
+    "coverage_rate": 0.7950813174247742,
+    "tx_rate": 0.051343753933906555,
+    "collision_rate": 0.003941666800528765,
+    "actuation": 0.4889596104621887,
+    "seconds": 69.73855931599974
+  }
+]

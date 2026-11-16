@@ -1,0 +1,82 @@
+[
+  {
+    "targets": "greedy",
+    "rule": "always",
+    "reward": 0.5843666076660157,
+    "coverage_rate": 0.7037724256515503,
+    "tx_rate": 1.0,
+    "collision_rate": 0.5798682570457458,
+    "actuation": 0.3725249767303467,
+    "seconds": 222.88746349999565
+  },
+  {
+    "targets": "greedy",
+    "rule": "event",
+    "reward": 0.6147549152374268,
+    "coverage_rate": 0.7037190198898315,
+    "tx_rate": 0.698062539100647,
+    "collision_rate": 0.3826773464679718,
+    "actuation": 0.36709272861480713,
+    "seconds": 47.043386542005464
+  },
+  {
+    "targets": "greedy",
+    "rule": "periodic-4",
+    "reward": 0.6569013595581055,
+    "coverage_rate": 0.7007333636283875,
+    "tx_rate": 0.25,
+    "collision_rate": 0.0,
+    "actuation": 0.359269917011261,
+    "seconds": 46.583918540971354
+  },
+  {
+    "targets": "greedy",
+    "rule": "never",
+    "reward": 0.6113863945007324,
+    "coverage_rate": 0.628054141998291,
+    "tx_rate": 0.0,
+    "collision_rate": 0.0,
+    "actuation": 0.31744030117988586,
+    "seconds": 43.12128737499006
+  },
+  {
+    "targets": "waypoint",
+    "rule": "always",
+    "reward": 0.680378770828247,
+    "coverage_rate": 0.8003031611442566,
+    "tx_rate": 1.0,
+    "collision_rate": 0.5799562335014343,
+    "actuation": 0.3984878361225128,
+    "seconds": 46.54683983398718
+  },
+  {
+    "targets": "waypoint",
+    "rule": "event",
+    "reward": 0.7160232543945313,
+    "coverage_rate": 0.8037312626838684,
+    "tx_rate": 0.6784375309944153,
+    "collision_rate": 0.3705708086490631,
+    "actuation": 0.39728718996047974,
+    "seconds": 46.148847917007515
+  },
+  {
+    "targets": "waypoint",
+    "rule": "periodic-4",
+    "reward": 0.7552443504333496,
+    "coverage_rate": 0.7998467683792114,
+    "tx_rate": 0.25,
+    "collision_rate": 0.0,
+    "actuation": 0.3920522630214691,
+    "seconds": 44.78483045901521
+  },
+  {
+    "targets": "waypoint",
+    "rule": "never",
+    "reward": 0.7828927516937256,
+    "coverage_rate": 0.799796998500824,
+    "tx_rate": 0.0,
+    "collision_rate": 0.0,
+    "actuation": 0.3380821943283081,
+    "seconds": 45.16359124999144
+  }
+]

@@ -1,0 +1,28 @@
+[
+  {
+    "run": "hrlippo_greedy_s0",
+    "targets": "greedy",
+    "critic": "local",
+    "seed": 0,
+    "mode": "deterministic",
+    "reward": 0.6128621578216553,
+    "coverage_rate": 0.671708345413208,
+    "tx_rate": 0.32343751192092896,
+    "collision_rate": 0.10586667060852051,
+    "actuation": 0.514872133731842,
+    "seconds": 70.0461891330051
+  },
+  {
+    "run": "hrlippo_greedy_s0",
+    "targets": "greedy",
+    "critic": "local",
+    "seed": 0,
+    "mode": "stochastic",
+    "reward": 0.6172281742095947,
+    "coverage_rate": 0.6894882917404175,
+    "tx_rate": 0.4386250078678131,
+    "collision_rate": 0.19458197057247162,
+    "actuation": 0.5519408583641052,
+    "seconds": 69.17242896999232
+  }
+]

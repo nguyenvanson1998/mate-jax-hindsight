@@ -1,0 +1,28 @@
+[
+  {
+    "run": "mappo_waypoint_s2",
+    "targets": "waypoint",
+    "critic": "centralized",
+    "seed": 2,
+    "mode": "deterministic",
+    "reward": 0.5129875183105469,
+    "coverage_rate": 0.512987494468689,
+    "tx_rate": 0.0,
+    "collision_rate": 0.0,
+    "actuation": 0.4893828332424164,
+    "seconds": 3.0172019739984535
+  },
+  {
+    "run": "mappo_waypoint_s2",
+    "targets": "waypoint",
+    "critic": "centralized",
+    "seed": 2,
+    "mode": "stochastic",
+    "reward": 0.5031343936920166,
+    "coverage_rate": 0.5031343698501587,
+    "tx_rate": 0.0,
+    "collision_rate": 0.0,
+    "actuation": 0.49946096539497375,
+    "seconds": 2.7981537940067938
+  }
+]

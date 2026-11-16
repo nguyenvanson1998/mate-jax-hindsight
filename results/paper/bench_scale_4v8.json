@@ -1,0 +1,42 @@
+[
+  {
+    "config": "MATE-4v8-9.yaml",
+    "variant": "greedy",
+    "batch": 1,
+    "env_steps_per_second": 2561.6027025824033,
+    "ms_per_step": 0.39038060000166297,
+    "compile_and_run_seconds": 9.013694130000658
+  },
+  {
+    "config": "MATE-4v8-9.yaml",
+    "variant": "foresight",
+    "batch": 1,
+    "env_steps_per_second": 1046.8909413629835,
+    "ms_per_step": 0.9552093350794166,
+    "compile_and_run_seconds": 222.49884903000202
+  },
+  {
+    "config": "MATE-4v8-9.yaml",
+    "variant": "traj-2",
+    "batch": 1,
+    "env_steps_per_second": 188.1273630185886,
+    "ms_per_step": 5.315547849895665,
+    "compile_and_run_seconds": 203.4556902910117
+  },
+  {
+    "config": "MATE-4v8-9.yaml",
+    "variant": "pub-4",
+    "batch": 1,
+    "env_steps_per_second": 680.0299579860538,
+    "ms_per_step": 1.4705234501161613,
+    "compile_and_run_seconds": 299.3603568020044
+  },
+  {
+    "config": "MATE-4v8-9.yaml",
+    "variant": "pub-4-hybrid",
+    "batch": 1,
+    "env_steps_per_second": 661.3260706623603,
+    "ms_per_step": 1.5121133800130337,
+    "compile_and_run_seconds": 156.25480804301333
+  }
+]
