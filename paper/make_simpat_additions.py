@@ -245,9 +245,9 @@ def parity_table():
         macro(f'ParityDiverged{tag}', 100.0 * rows[(config, 0.0, 'float32', 1000)]['diverged_target_share'], 1)
     macro('ParityEpisodes', str(rows[(configs[0], 0.0, 'float64', 1000)]['episodes']))
 
-    def difference(a, b):  # paired when the same episodes are available, otherwise two independent samples
+    def difference(a, b, paired=True):  # paired only when both samples come from the same episodes
         a, b = np.asarray(a), np.asarray(b)
-        if a.size == b.size:
+        if paired and a.size == b.size:
             d = a - b
             return d.mean(), d.std(ddof=1) / np.sqrt(d.size), stats.ttest_rel(a, b).pvalue
         return a.mean() - b.mean(), np.sqrt(a.var(ddof=1) / a.size + b.var(ddof=1) / b.size), stats.ttest_ind(a, b, equal_var=False).pvalue
@@ -268,7 +268,8 @@ def parity_table():
         macro(f'PortBothOriginalEnv{tag}', float(np.mean(row['cameras-jax_targets-jax'])))
         jax_env = closed.get((row['config'], 0.1))
         if jax_env:
-            mean, se, p = difference(jax_env['jax_coverage'], row['cameras-jax_targets-jax'])
+            # MATE-JAX draws its own episodes, independent of those of the original environment: Welch's test
+            mean, se, p = difference(jax_env['jax_coverage'], row['cameras-jax_targets-jax'], paired=False)
             macro(f'PortBothJaxEnv{tag}', float(np.mean(jax_env['jax_coverage'])))
             print(f'simulator effect {row["config"]} (same ported agents, JAX env - original env): {mean:+.4f} +- {se:.4f} p={p:.3g}')
 
@@ -432,7 +433,7 @@ def derived_tables():
 
     # Ablation table: the hybrid memory equals the shared memory without loss (said in the text).
     ablation = [rename(line, [('Trajectories, 1 round', '\\FS, 1 round'), ('Trajectories, 3 rounds', '\\FS, 3 rounds'),
-                              ('+ learned forecaster', '\\quad + learned forecaster')])
+                              ('+ learned forecaster', '\\FS, 2 rounds, learned forecaster')])
                 for line in read_rows('v2_table_ablation.tex') if not line.startswith('Hybrid memory')]
     ablation.insert(1, zoom_control())
     write_rows('simpat_table_ablation.tex', ablation)
