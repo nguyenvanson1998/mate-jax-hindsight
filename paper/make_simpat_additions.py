@@ -11,6 +11,7 @@ It does not touch the other generated files (their bold / underline marks were s
     python3 paper-jnca/make_simpat_additions.py
 """
 
+import json
 import os
 
 import numpy as np
@@ -693,6 +694,81 @@ def sensitivity_tables():
               f'grid FS {np.round(grid_fs[t], 3)}, grid gain {np.round(grid_gain[t], 3)}')
 
 
+# Reviewer checks: blurred oracle for option-level planning, random-action replay, three cameras, penalties --- #
+
+def extra_checks():
+    """Macros and the three-camera table for the checks added after review (Supplementary Sections S10 to S12)."""
+
+    path = os.path.join(os.path.dirname(__file__), '..', 'mate', 'results', 'paper')
+
+    # Blurred oracle for the option-level planner (headroom.py on the default planner).
+    rows = {(r['targets'], r['mode']): r for r in json.load(open(os.path.join(path, 'headroom_blur_option_4v8.json')))}
+    for t in TARGETS:
+        tag = SHORT[t]
+        for name, mode in (('Point', 'oracle-future'), ('BlurHalf', 'oracle-future-blur-0.5'), ('BlurOne', 'oracle-future-blur-1')):
+            macro(f'Opt{name}Gain{tag}', f'{rows[(t, mode)]["delta_vs_foresight"]:+.3f}')
+            macro(f'Opt{name}GainSe{tag}', rows[(t, mode)]['delta_se'])
+
+    # Random-action replay (parity_multistep.py --actions random), 1000 steps.
+    replay = [r for r in json.load(open(os.path.join(path, 'parity_random.json')))['trace_replay'] if r['steps'] == 1000]
+    double = [r for r in replay if r['precision'] == 'float64']
+    single = {('Four' if '4v8' in r['config'] else 'Eight'): r for r in replay if r['precision'] == 'float32'}
+    macro('RandPosDouble', f'{max(r["max_position_error"] for r in double):.0e}'.replace('e-', '\\times10^{-') + '}')
+    macro('RandCovDoubleMax', max(r['coverage_difference_max_abs'] for r in double), 4)
+    macro('RandEpisodes', str(double[0]['episodes']))
+    for tag, r in single.items():
+        macro(f'RandPosSingle{tag}', r['max_position_error'], 0)
+        macro(f'RandCovSingle{tag}', f'{r["coverage_difference"]:+.4f}')
+        macro(f'RandCovSingleSe{tag}', r['coverage_difference_se'], 4)
+
+    # Exact optimum for three cameras on the coarser lattice.
+    lines, slack, slack_max, loss = [], [], [], []
+    for r in json.load(open(os.path.join(path, 'exact_triple_4v8.json'))):
+        lo, op, up = (np.asarray(r[k]) for k in ('lower', 'optimum', 'upper'))
+        assert np.all(lo <= op + 1e-9) and np.all(op <= up + 1e-6), 'bracket violated'
+        gain, gap = op - lo, up - op
+        slack.append(gap.mean())
+        slack_max.append(gap.max())
+        loss.append(gain.mean())
+        lines.append(' & '.join([
+            'Goal-directed' if r['targets'] == 'greedy' else 'RWP', ', '.join(str(c + 1) for c in r['triple']),
+            f'{lo.mean():.4f}', f'{op.mean():.4f}', f'{up.mean():.4f}',
+            f'{gain.mean():.4f} $\\pm$ {gain.std(ddof=1) / np.sqrt(gain.size):.4f}', f'{gain.max():.4f}',
+            f'{gap.mean():.4f}', f'{gap.max():.4f}']) + ' \\\\')
+    with open(os.path.join(GENERATED, 'simpat_table_triple.tex'), 'w', encoding='UTF-8') as file:
+        file.write('\n'.join(lines) + '\n')
+    macro('TripleSlackMax', max(slack), 4)
+    macro('TripleSlackEpisodeMax', max(slack_max), 4)
+    macro('TripleLossMin', min(loss), 3)
+    macro('TripleLossMax', max(loss), 3)
+    print(f'exact triple: U-OPT mean up to {max(slack):.4f}, per episode up to {max(slack_max):.4f}; OPT-L {min(loss):.4f}..{max(loss):.4f}')
+
+    # Penalized bounds (penalty_bound.py): tuning on seed-1 episodes, evaluation on seed-0 episodes (300 steps).
+    names = {'lags': 'Future coverage of the pose', 'path': 'Value of the best path'}
+    lines, best_gain = [], []
+    for name in ('lags', 'path'):
+        for r in json.load(open(os.path.join(path, f'penalty_{name}_4v8.json'))):
+            base = r['tuning'][0]['upper']
+            tuned = [x['upper'] for x in r['tuning'][1:]]
+            best_gain.append(base - min(tuned))
+            lines.append(' & '.join([
+                names[name], 'Goal-directed' if r['targets'] == 'greedy' else 'RWP', str(len(tuned)),
+                f'{base:.4f}', f'{min(tuned):.4f}', f'{max(tuned):.4f}', f'{r["lagrangian"]:.4f}', f'{r["penalized"]:.4f}',
+            ]) + ' \\\\')
+    with open(os.path.join(GENERATED, 'simpat_table_penalty.tex'), 'w', encoding='UTF-8') as file:
+        file.write('\n'.join(lines) + '\n')
+    macro('PenaltyBestGain', max(best_gain), 4)
+    print(f'penalties: largest decrease on the tuning episodes {max(best_gain):.4f}')
+
+    # Predictability of the targets given the full simulator state (predictability.py).
+    for r in json.load(open(os.path.join(path, 'predictability_4v8.json'))):
+        tag = SHORT[r['targets']]
+        macro(f'PredSpreadTwenty{tag}', r['spread_mean_20'], 0)
+        macro(f'PredSpreadTwentyMedian{tag}', r['spread_median_20'], 0)
+        macro(f'PredSpreadFifty{tag}', r['spread_mean_50'], 0)
+        macro(f'PredSplitTwenty{tag}', 100.0 * r['split_share_20'], 0)
+
+
 def main():
     paired_table()
     burst_figure()
@@ -705,6 +781,7 @@ def main():
     marl_figure()
     extended_tests()
     sensitivity_tables()
+    extra_checks()
     with open(os.path.join(GENERATED, 'simpat_macros.tex'), 'w', encoding='UTF-8') as file:
         file.write('\n'.join(f'\\newcommand{{\\{k}}}{{{v}}}' for k, v in sorted(MACROS.items())) + '\n')
     for key, value in sorted(MACROS.items()):

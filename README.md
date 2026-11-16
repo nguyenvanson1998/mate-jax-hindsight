@@ -161,6 +161,34 @@ python3 research/train_forecaster.py --targets greedy --save-dir results/forecas
 python3 research/train_forecaster.py --targets waypoint --save-dir results/forecaster_waypoint --out results/forecaster_waypoint.json
 ```
 
+### Additional checks
+
+These scripts produce the results of Supplementary Sections S10 and S11 and the extra checks of the paper.
+
+```bash
+# Exact optimum for three cameras on a coarser lattice (20 and 10 degrees per step), against both bounds
+python3 research/exact_triple.py --config MATE-4v8-9.yaml --targets greedy waypoint --triples 0,1,2 1,2,3 \
+    --num-envs 32 --num-steps 1000 --key-steps 1000 --dual-iterations 150 --self-test --out results/paper/exact_triple_4v8.json
+
+# Blurred oracle for option-level planning (default planner of headroom.py)
+python3 research/headroom.py --config MATE-4v8-9.yaml --targets greedy waypoint --modes foresight oracle-future \
+    --blur-sigmas 0.5 1 --num-envs 32 --num-steps 1000 --key-steps 1000 --out results/paper/headroom_blur_option_4v8.json
+
+# Replay of uniformly random actions in MATE and MATE-JAX (needs gym and the original MATE)
+python3 research/parity_multistep.py --configs MATE-4v8-9.yaml MATE-8v8-9.yaml --transmittances 0.0 --episodes 32 \
+    --num-steps 1000 --horizons 1 10 100 1000 --precisions float64 float32 --closed-loop-episodes 0 --actions random \
+    --out results/paper/parity_random.json
+
+# Penalized upper bounds (two penalty forms) and the predictability of the targets given the full state
+python3 research/penalty_bound.py --penalty lags --targets greedy waypoint --num-envs 4 --num-steps 300 --key-steps 1000 \
+    --samples 16 --chunk 50 --dual-iterations 100 --tune-envs 4 --tune-samples 16 --tune-iterations 60 \
+    --lambdas 0.05 0.1 0.25 0.5 --profiles 0 0,1,3,7 0,1,3,7,15,31 --out results/paper/penalty_lags_4v8.json
+python3 research/penalty_bound.py --penalty path --targets greedy waypoint --num-envs 4 --num-steps 300 --key-steps 1000 \
+    --path-horizon 20 --children 8 --samples 8 --chunk 25 --dual-iterations 100 --tune-envs 4 --tune-samples 8 \
+    --tune-iterations 60 --path-grid 0,0.05 0,0.1 0,0.25 0,0.5 0.1,0.1 --out results/paper/penalty_path_4v8.json
+python3 research/predictability.py --targets greedy waypoint --num-envs 8 --out results/paper/predictability_4v8.json
+```
+
 ### Learned baselines
 
 The multi-agent reinforcement learning baselines are trained and evaluated by these scripts (see the
