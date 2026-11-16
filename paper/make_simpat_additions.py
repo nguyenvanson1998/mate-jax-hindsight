@@ -769,6 +769,101 @@ def extra_checks():
         macro(f'PredSplitTwenty{tag}', 100.0 * r['split_share_20'], 0)
 
 
+# Continuous poses: Lagrangian bounds over cells, certified gaps, and where the width of the bracket comes from ----- #
+
+CONFIG_TITLES = {'4v8': '4 cameras, 8 targets', '8v8': '8 cameras, 8 targets', '8v16': '8 cameras, 16 targets',
+                 '16v32': '16 cameras, 32 targets'}
+
+
+def cells_checks():
+    path = os.path.join(os.path.dirname(__file__), '..', 'mate', 'results', 'paper')
+    by_targets = lambda name: {r['targets']: r for r in json.load(open(os.path.join(path, name)))}
+    lines, extra, widest = [], [], []
+    for config in ('4v8', '8v8', '8v16', '16v32'):
+        name = f'bound_cells_{config}.json'
+        if not os.path.exists(os.path.join(path, name)):
+            continue
+        cells, lattice = by_targets(name), by_targets(f'bound_dual_{config}.json')
+        cells2 = by_targets('bound_cells2_4v8.json') if config == '4v8' and os.path.exists(os.path.join(path, 'bound_cells2_4v8.json')) else None
+        lines.append(f'\\multicolumn{{8}}{{l}}{{\\emph{{{CONFIG_TITLES[config]}}}}} \\\\')
+        for t in TARGETS:
+            low = np.asarray(cells[t]['per_episode_coverage'])
+            up_lat = np.asarray(lattice[t]['per_episode_dual_bound'])
+            up = np.asarray(cells[t]['per_episode_dual_bound'])
+            width = up - low
+            widest.append(width.mean())
+            cells_fine = '--'
+            if cells2 is not None:
+                fine = np.asarray(cells2[t]['per_episode_dual_bound'])
+                low2 = np.asarray(cells2[t]['per_episode_coverage'])
+                cells_fine = f'{fine.mean():.3f}'
+                macro(f'CellFine{SHORT[t]}', fine.mean(), 3)
+                macro(f'CellFineWidth{SHORT[t]}', (fine - np.maximum(low, low2)).mean(), 3)
+                macro(f'LatFineLow{SHORT[t]}', low2.mean(), 3)
+            lines.append(' & '.join(['\\quad ' + TARGET_TITLES[t].split(' ')[0] if t == 'greedy' else '\\quad RWP',
+                                     f'{low.mean():.3f}', f'{up_lat.mean():.3f}', f'{up.mean():.3f}', cells_fine,
+                                     ('0.000' if abs((up - up_lat).mean()) < 5e-4 else f'{(up - up_lat).mean():+.3f}'), f'{width.mean():.3f}', f'{width.max():.3f}']) + ' \\\\')
+            if config == '4v8':
+                tag = SHORT[t]
+                macro(f'CellUpper{tag}', up.mean(), 3)
+                macro(f'CellWidth{tag}', width.mean(), 3)
+                macro(f'CellWidthMax{tag}', width.max(), 3)
+                macro(f'CellExtra{tag}', f'{(up - up_lat).mean():+.3f}')
+            extra.append((up - up_lat).mean())
+    if lines:
+        with open(os.path.join(GENERATED, 'simpat_table_cells.tex'), 'w', encoding='UTF-8') as file:
+            file.write('\n'.join(lines) + '\n')
+        macro('CellWidthMaxMean', max(widest), 3)
+        macro('CellExtraMax', max(extra), 3)
+        print(f'cells: mean widths {np.round(widest, 3)}, extra over the lattice bound {np.round(extra, 4)}')
+
+    # Certified gaps of the controllers run in the simulator with opaque obstacles (four cameras).
+    name = os.path.join(path, 'bound_cells_4v8.json')
+    if os.path.exists(name):
+        cells = by_targets('bound_cells_4v8.json')
+        rows = {(r['targets'], r['variant']): r for r in json.load(open(os.path.join(path, 'main_4v8_opaque.json')))}
+        violations, checked = 0, 0
+        for (t, variant), r in rows.items():
+            c = np.asarray(r['per_episode_coverage'])
+            up = np.asarray(cells[t]['per_episode_dual_bound'])
+            low = np.asarray(cells[t]['per_episode_coverage'])
+            violations += int(np.sum(c > up + 1e-9))
+            checked += c.size
+            tag = {'traj-2-forecast': 'Fs', 'greedy': 'Rule', 'foresight': 'Opt'}.get(variant)
+            if tag:
+                gap = up - c
+                macro(f'CertGap{tag}{SHORT[t]}', gap.mean(), 3)
+                macro(f'CertGapSe{tag}{SHORT[t]}', gap.std(ddof=1) / np.sqrt(gap.size), 3)
+                macro(f'CertLow{tag}{SHORT[t]}', np.maximum(low - c, 0.0).mean(), 3)
+        macro('CertViolations', str(violations))
+        macro('CertChecked', str(checked))
+        print(f'certified: {violations} of {checked} controller episodes above the cell bound')
+
+    # Width of the bracket for pairs: ascent, discretization, separation of the cameras.
+    name = os.path.join(path, 'exact_pair_cells_4v8.json')
+    if os.path.exists(name):
+        lattice = {(r['targets'], tuple(r['pair'])): r for r in json.load(open(os.path.join(path, 'exact_pair_4v8.json')))}
+        lines, parts = [], {'ascent': [], 'discretization': [], 'separation': []}
+        for r in json.load(open(name)):
+            key = (r['targets'], tuple(r['pair']))
+            low, opt_cell, up = (np.asarray(r[k]) for k in ('lower', 'optimum', 'upper'))
+            opt_lat = np.asarray(lattice[key]['optimum'])
+            a, d, sep = opt_lat - low, opt_cell - opt_lat, up - opt_cell
+            parts['ascent'].append(a.mean())
+            parts['discretization'].append(d.mean())
+            parts['separation'].append(sep.mean())
+            lines.append(' & '.join(['Goal-directed' if r['targets'] == 'greedy' else 'RWP',
+                                     ' and '.join(str(c + 1) for c in r['pair']), f'{low.mean():.4f}', f'{opt_lat.mean():.4f}',
+                                     f'{opt_cell.mean():.4f}', f'{up.mean():.4f}', f'{a.mean():.4f}', f'{d.mean():.4f}',
+                                     f'{sep.mean():.4f}']) + ' \\\\')
+        with open(os.path.join(GENERATED, 'simpat_table_width.tex'), 'w', encoding='UTF-8') as file:
+            file.write('\n'.join(lines) + '\n')
+        for k, v in parts.items():
+            macro(f'Width{k.capitalize()}Min', min(v), 4)
+            macro(f'Width{k.capitalize()}Max', max(v), 4)
+        print('pair width parts: ' + ', '.join(f'{k} {min(v):.4f}..{max(v):.4f}' for k, v in parts.items()))
+
+
 def main():
     paired_table()
     burst_figure()
@@ -782,6 +877,7 @@ def main():
     extended_tests()
     sensitivity_tables()
     extra_checks()
+    cells_checks()
     with open(os.path.join(GENERATED, 'simpat_macros.tex'), 'w', encoding='UTF-8') as file:
         file.write('\n'.join(f'\\newcommand{{\\{k}}}{{{v}}}' for k, v in sorted(MACROS.items())) + '\n')
     for key, value in sorted(MACROS.items()):

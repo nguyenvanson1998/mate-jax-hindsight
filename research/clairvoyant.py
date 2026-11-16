@@ -58,22 +58,38 @@ def record(env, target_policy, keys, record_steps):
     return jax.jit(jax.vmap(episode))(keys)
 
 
-def make_camera_dp(env, num_steps):
+def make_camera_dp(env, num_steps, refine=1, cells=False):
     """Compiled ``dp(location, theta0, view0, targets, weights, obstacles) -> ((num_steps, T) coverage, actions,
-    value)``: the best lattice schedule of one camera when covering target j at step t is worth weights[t, j]."""
+    value)``: the best schedule of one camera when covering target j at step t is worth weights[t, j].
+
+    ``cells=False`` (lattice): poses on a lattice anchored at the initial pose with steps rotation / refine and
+    zoom / refine; one time step moves by at most ``refine`` lattice steps per axis, so every lattice schedule is
+    feasible and its coverage is achievable.
+
+    ``cells=True`` (continuous poses): the pose space is partitioned into half-open cells of the same widths, anchored
+    at the initial pose. A target counts as covered in a cell if *some* pose of the cell covers it (an exact test:
+    the closest orientation of the cell interval, and a viewing angle that is both wide enough for that offset and
+    narrow enough for the distance). Every continuous schedule within the rate limits passes through cells that are
+    at most ``refine`` cells apart per step, so the optimum over cell paths bounds the optimum over continuous
+    schedules from above (it is not achievable)."""
 
     cfg = env.config
-    rotation, zooming = cfg.camera_rotation_step, cfg.camera_zooming_step
+    rotation, zooming = cfg.camera_rotation_step / refine, cfg.camera_zooming_step / refine
     num_orientations = int(round(360.0 / rotation))
-    num_views = int((MAX_CAMERA_VIEWING_ANGLE - cfg.camera_min_viewing_angle) / zooming) + 2
+    num_views = int(np.ceil((MAX_CAMERA_VIEWING_ANGLE - cfg.camera_min_viewing_angle) / zooming - 1e-6)) + 2
+    moves_1d = list(range(-refine, refine + 1))
 
     def dp(location, theta0, view0, targets, weights, obstacle_location, obstacle_radius):
-        # Lattice anchored at the initial pose.
-        orientation = theta0 + rotation * jnp.arange(num_orientations)  # (O,)
+        orientation = theta0 + rotation * jnp.arange(num_orientations)  # (O,) lattice poses or cell lower edges
         j0 = jnp.floor((view0 - cfg.camera_min_viewing_angle) / zooming + 1e-6).astype(jnp.int32)
         viewing = view0 + zooming * (jnp.arange(num_views) - j0)  # (V,)
-        valid = (viewing >= cfg.camera_min_viewing_angle - 1e-6) & (viewing <= MAX_CAMERA_VIEWING_ANGLE + 1e-6)
-        sight = jnp.sqrt(env.camera_area_product / jnp.maximum(viewing, 1e-3))
+        if cells:
+            view_lo = jnp.maximum(viewing, cfg.camera_min_viewing_angle)
+            view_hi = jnp.minimum(viewing + zooming, MAX_CAMERA_VIEWING_ANGLE)
+            valid = view_lo <= view_hi + 1e-6
+        else:
+            valid = (viewing >= cfg.camera_min_viewing_angle - 1e-6) & (viewing <= MAX_CAMERA_VIEWING_ANGLE + 1e-6)
+            sight = jnp.sqrt(env.camera_area_product / jnp.maximum(viewing, 1e-3))
 
         relative = targets - location  # (S, T, 2)
         distance = safe_norm(relative)
@@ -83,6 +99,14 @@ def make_camera_dp(env, num_steps):
         )(distance, targets)  # (S, T)
 
         def covers(t):
+            if cells:
+                # angular distance from the target bearing to the orientation interval [o, o + rotation)
+                start = normalize_angle(angle[t][None, :] - orientation[:, None])  # in (-180, 180]
+                inside = (start >= 0.0) & (start <= rotation)
+                offset = jnp.where(inside, 0.0, jnp.minimum(jnp.abs(start), jnp.abs(normalize_angle(start - rotation))))
+                widest = env.camera_area_product / jnp.maximum(jnp.square(distance[t]), 1e-6)  # alpha <= A / d^2
+                need = jnp.maximum(view_lo[None, :, None], 2.0 * offset[:, None, :])  # (O, V, T)
+                return (need <= jnp.minimum(view_hi[None, :, None], widest[None, None, :]) + 1e-6) & visible[t][None, None, :]
             offset = jnp.abs(normalize_angle(angle[t][None, :] - orientation[:, None]))  # (O, T)
             return (
                 (2.0 * offset[:, None, :] <= viewing[None, :, None])
@@ -90,20 +114,19 @@ def make_camera_dp(env, num_steps):
                 & visible[t][None, None, :]
             )  # (O, V, T)
 
-        def neighbours(value):  # (O, V) -> (9, O, V): value of each predecessor move
-            padded = jnp.pad(value, ((0, 0), (1, 1)), constant_values=NEG)
-            shifted = [
-                jnp.roll(padded, -do, axis=0)[:, 1 + dv : 1 + dv + num_views]
-                for do in (-1, 0, 1)
-                for dv in (-1, 0, 1)
-            ]
-            return jnp.stack(shifted)
+        moves = [(do, dv) for do in moves_1d for dv in moves_1d]
+
+        def neighbours(value):  # (O, V) -> (M, O, V): value of each predecessor move
+            padded = jnp.pad(value, ((0, 0), (refine, refine)), constant_values=NEG)
+            return jnp.stack([
+                jnp.roll(padded, -do, axis=0)[:, refine + dv: refine + dv + num_views] for do, dv in moves
+            ])
 
         start = jnp.full((num_orientations, num_views), NEG).at[0, j0].set(0.0)
 
         def forward(value, t):
             options = neighbours(value)
-            best, pointer = options.max(0), options.argmax(0).astype(jnp.int8)
+            best, pointer = options.max(0), options.argmax(0).astype(jnp.int16)
             gain = jnp.sum(covers(t) * weights[t][None, None, :], axis=-1)
             value = jnp.where(valid[None, :], best + gain, NEG)
             return value, pointer
@@ -111,10 +134,10 @@ def make_camera_dp(env, num_steps):
         final, pointers = jax.lax.scan(forward, start, jnp.arange(num_steps))
         index = jnp.argmax(final.ravel())
         last = jnp.stack([index // num_views, index % num_views])
-        moves = jnp.array([(do, dv) for do in (-1, 0, 1) for dv in (-1, 0, 1)])
+        move_array = jnp.array(moves)
 
         def backward(pose, pointer):
-            move = moves[pointer[pose[0], pose[1]]]
+            move = move_array[pointer[pose[0], pose[1]]]
             previous = jnp.stack([(pose[0] + move[0]) % num_orientations, pose[1] + move[1]])
             return previous, pose
 
@@ -123,12 +146,11 @@ def make_camera_dp(env, num_steps):
         def coverage(t, pose):
             return covers(t)[pose[0], pose[1]]
 
-        actions = jnp.stack(  # rate-limited actions that follow the lattice path
-            [
-                normalize_angle(rotation * jnp.diff(path[:, 0], prepend=0).astype(jnp.float32)),
-                zooming * jnp.diff(path[:, 1], prepend=j0).astype(jnp.float32),
-            ],
-            axis=-1,
+        steps = jnp.diff(path[:, 0], prepend=0).astype(jnp.float32)
+        steps = jnp.where(steps > num_orientations / 2, steps - num_orientations, steps)
+        steps = jnp.where(steps < -num_orientations / 2, steps + num_orientations, steps)
+        actions = jnp.stack(  # rate-limited actions that follow the lattice path (meaningless for cells)
+            [rotation * steps, zooming * jnp.diff(path[:, 1], prepend=j0).astype(jnp.float32)], axis=-1,
         )
         return jax.vmap(coverage)(jnp.arange(num_steps), path), actions, final.max()  # (S, T), (S, 2), ()
 
@@ -214,6 +236,9 @@ def main():
                         help='episode key length (default num_steps + 51; num_steps pairs with eval_foresight.py)')
     parser.add_argument('--dual-iterations', type=int, default=0, help='Lagrangian upper bound (0: skip)')
     parser.add_argument('--env-json', default='{}', help='environment overrides, e.g. \'{"target": {"step_size": 30.0}}\'')
+    parser.add_argument('--refine', type=int, default=1, help='lattice / cell width = rate limit / refine')
+    parser.add_argument('--cells', action='store_true',
+                        help='upper bound for continuous poses: Lagrangian bound over cells (the lower bound stays on the lattice)')
     parser.add_argument('--out', default=None)
     args = parser.parse_args()
 
@@ -222,7 +247,8 @@ def main():
     record_steps = args.key_steps or args.num_steps + int(np.max(planner.horizons)) + 1
     RECORD_STEPS[0] = record_steps
     keys = jax.random.split(jax.random.PRNGKey(args.seed), args.num_envs)
-    dp = make_camera_dp(env, args.num_steps)
+    dp = make_camera_dp(env, args.num_steps, refine=args.refine)
+    cell_dp = make_camera_dp(env, args.num_steps, refine=args.refine, cells=True) if args.cells else None
     results = []
     for targets in args.targets:
         start = time.perf_counter()
@@ -256,9 +282,9 @@ def main():
         }
         if args.dual_iterations:
             lower = np.asarray(jnp.any(masks, axis=1).sum((1, 2)), np.float64)
-            upper, dual_history = dual_bound(dp, state, after, lower, args.dual_iterations)
+            upper, dual_history = dual_bound(cell_dp or dp, state, after, lower, args.dual_iterations)
             row.update(dual_bound=float(upper.mean()), per_episode_dual_bound=upper.tolist(), dual_history=dual_history,
-                       seconds=time.perf_counter() - start)
+                       seconds=time.perf_counter() - start, refine=args.refine, cells=bool(args.cells))
         results.append(row)
         print(json.dumps({k: v for k, v in row.items() if not k.startswith('per_episode') and k != 'dual_history'}), flush=True)
     if args.out:

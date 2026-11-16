@@ -41,7 +41,7 @@ from mate_jax.geometry import arctan2_deg, line_of_sight, normalize_angle, safe_
 NEG = -1e9
 
 
-def make_pair_dp(env, num_steps):
+def make_pair_dp(env, num_steps, cells=False):
     """Compiled ``exact(location (2, 2), theta0 (2,), view0 (2,), targets (S, T, 2), obstacles, mute_b) -> value``:
     the largest number of covered target-steps of two cameras over all joint lattice schedules."""
 
@@ -54,7 +54,10 @@ def make_pair_dp(env, num_steps):
         orientation = theta0 + rotation * jnp.arange(num_orientations)
         j0 = jnp.floor((view0 - cfg.camera_min_viewing_angle) / zooming + 1e-6).astype(jnp.int32)
         viewing = view0 + zooming * (jnp.arange(num_views) - j0)
-        valid = (viewing >= cfg.camera_min_viewing_angle - 1e-6) & (viewing <= MAX_CAMERA_VIEWING_ANGLE + 1e-6)
+        if cells:
+            valid = jnp.maximum(viewing, cfg.camera_min_viewing_angle) <= jnp.minimum(viewing + zooming, MAX_CAMERA_VIEWING_ANGLE) + 1e-6
+        else:
+            valid = (viewing >= cfg.camera_min_viewing_angle - 1e-6) & (viewing <= MAX_CAMERA_VIEWING_ANGLE + 1e-6)
         sight = jnp.sqrt(env.camera_area_product / jnp.maximum(viewing, 1e-3))
         relative = targets - location
         distance = safe_norm(relative)
@@ -64,12 +67,22 @@ def make_pair_dp(env, num_steps):
         )(distance, targets)
 
         def covers(t):  # (O * V, T) float
-            offset = jnp.abs(normalize_angle(angle[t][None, :] - orientation[:, None]))
-            mask = (
-                (2.0 * offset[:, None, :] <= viewing[None, :, None])
-                & (distance[t][None, None, :] <= sight[None, :, None])
-                & visible[t][None, None, :]
-            )
+            if cells:  # optimistic coverage of the cell [o, o + rotation) x [v, v + zooming), as in clairvoyant.py
+                view_lo = jnp.maximum(viewing, cfg.camera_min_viewing_angle)
+                view_hi = jnp.minimum(viewing + zooming, MAX_CAMERA_VIEWING_ANGLE)
+                start = normalize_angle(angle[t][None, :] - orientation[:, None])
+                inside = (start >= 0.0) & (start <= rotation)
+                offset = jnp.where(inside, 0.0, jnp.minimum(jnp.abs(start), jnp.abs(normalize_angle(start - rotation))))
+                widest = env.camera_area_product / jnp.maximum(jnp.square(distance[t]), 1e-6)
+                need = jnp.maximum(view_lo[None, :, None], 2.0 * offset[:, None, :])
+                mask = (need <= jnp.minimum(view_hi[None, :, None], widest[None, None, :]) + 1e-6) & visible[t][None, None, :]
+            else:
+                offset = jnp.abs(normalize_angle(angle[t][None, :] - orientation[:, None]))
+                mask = (
+                    (2.0 * offset[:, None, :] <= viewing[None, :, None])
+                    & (distance[t][None, None, :] <= sight[None, :, None])
+                    & visible[t][None, None, :]
+                )
             return mask.reshape(num_orientations * num_views, -1).astype(jnp.float32)
 
         return covers, valid, j0
@@ -147,16 +160,20 @@ def main():
     parser.add_argument('--key-steps', type=int, default=None, help='as in clairvoyant.py')
     parser.add_argument('--dual-iterations', type=int, default=150)
     parser.add_argument('--self-test', action='store_true', help='check the joint program against the single-camera one')
+    parser.add_argument('--cells', action='store_true',
+                        help='continuous poses: exact joint optimum and Lagrangian bound over cells (optimistic coverage)')
+    parser.add_argument('--env-json', default='{}', help='environment overrides')
     parser.add_argument('--out', default=None)
     args = parser.parse_args()
 
-    env = mate_jax.make(args.config)
+    env = mate_jax.make(args.config, **json.loads(args.env_json))
     planner = ForesightCameraPolicy.from_env(env)
     record_steps = args.key_steps or args.num_steps + int(np.max(planner.horizons)) + 1
     C.RECORD_STEPS[0] = record_steps
     keys = jax.random.split(jax.random.PRNGKey(args.seed), args.num_envs)
     dp = C.make_camera_dp(env, args.num_steps)
-    exact = make_pair_dp(env, args.num_steps)
+    exact = make_pair_dp(env, args.num_steps, cells=args.cells)
+    cell_dp = C.make_camera_dp(env, args.num_steps, cells=True) if args.cells else None
     scale = args.num_steps * env.num_targets
     results = []
     for targets in args.targets:
@@ -186,11 +203,11 @@ def main():
                 for e in range(args.num_envs)
             ], np.float64)
             row = {
-                'config': args.config, 'targets': targets, 'pair': list(pair), 'episodes': args.num_envs,
+                'config': args.config, 'targets': targets, 'pair': list(pair), 'episodes': args.num_envs, 'cells': bool(args.cells),
                 'num_steps': args.num_steps, 'lower': (lower / scale).tolist(), 'optimum': (optimum / scale).tolist(),
             }
             if args.dual_iterations:
-                upper, _ = C.dual_bound(dp, sub, after, lower, args.dual_iterations)
+                upper, _ = C.dual_bound(cell_dp or dp, sub, after, lower, args.dual_iterations)
                 row['upper'] = np.asarray(upper, np.float64).tolist()
             row['seconds'] = time.perf_counter() - start
             results.append(row)

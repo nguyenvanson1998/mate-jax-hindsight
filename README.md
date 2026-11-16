@@ -2,7 +2,7 @@
 
 Code and results of the paper
 
-> **Measuring the optimality gap of camera network controllers by trace-driven simulation with hindsight bounds**
+> **Trace-driven evaluation of camera network controllers with certified hindsight bounds**
 > Nguyen Van Son, Phenikaa University.
 > Submitted to *Simulation Modelling Practice and Theory* (Elsevier).
 
@@ -163,9 +163,18 @@ python3 research/train_forecaster.py --targets waypoint --save-dir results/forec
 
 ### Additional checks
 
-These scripts produce the results of Supplementary Sections S10 and S11 and the extra checks of the paper.
+These scripts produce the continuous-pose bounds, the exact optima of small networks, Supplementary Section S11 and the other checks of the paper.
 
 ```bash
+# Upper bounds for continuous poses (Lagrangian bound over cells of poses), opaque obstacles; --refine 2 halves the cells
+python3 research/clairvoyant.py --config MATE-4v8-9.yaml --targets greedy waypoint --num-envs 32 --num-steps 1000 \
+    --key-steps 1000 --rounds 3 --dual-iterations 150 --cells --env-json '{"obstacle": {"transmittance": 0.0}}' \
+    --out results/paper/bound_cells_4v8.json
+# Exact optimum of pairs over cells (splits the width of the bracket)
+python3 research/exact_pair.py --config MATE-4v8-9.yaml --targets greedy waypoint --pairs 0,1 2,3 --num-envs 32 \
+    --num-steps 1000 --key-steps 1000 --dual-iterations 150 --cells --env-json '{"obstacle": {"transmittance": 0.0}}' \
+    --out results/paper/exact_pair_cells_4v8.json
+
 # Exact optimum for three cameras on a coarser lattice (20 and 10 degrees per step), against both bounds
 python3 research/exact_triple.py --config MATE-4v8-9.yaml --targets greedy waypoint --triples 0,1,2 1,2,3 \
     --num-envs 32 --num-steps 1000 --key-steps 1000 --dual-iterations 150 --self-test --out results/paper/exact_triple_4v8.json
