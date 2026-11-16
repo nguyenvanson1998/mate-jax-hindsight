@@ -13,6 +13,7 @@ import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+import jax.numpy as jnp  # noqa: E402
 import numpy as np  # noqa: E402
 
 import mate_jax  # noqa: E402
@@ -53,8 +54,38 @@ VARIANTS = {
         'objective': 'trajectory', 'levels': TRAJECTORY_LEVELS, 'coordination_rounds': 2,
         'forecaster': 'results/forecaster_{targets}/forecaster.msgpack',
     },
+    # Same control interval as the MARL baselines: every command is held for five steps.
+    'traj-2-forecast-repeat-5': {
+        'objective': 'trajectory', 'levels': TRAJECTORY_LEVELS, 'coordination_rounds': 2,
+        'forecaster': 'results/forecaster_{targets}/forecaster.msgpack', 'action_repeat': 5,
+    },
+    'traj-2-repeat-5': {'objective': 'trajectory', 'levels': TRAJECTORY_LEVELS, 'coordination_rounds': 2, 'action_repeat': 5},
 }
 TARGETS = {'greedy': A.GreedyTargetPolicy, 'waypoint': A.RandomWaypointTargetPolicy, 'random': A.RandomTargetPolicy}
+
+
+class ActionRepeat:
+    """Hold every pan/zoom command of ``policy`` for ``repeat`` steps, as the MARL baselines do (control interval).
+
+    The wrapped planner still observes and plans at every step (it reads the true camera poses from its observation),
+    but only the command of every ``repeat``-th step is executed; in between, the last executed command is repeated."""
+
+    def __init__(self, policy, repeat):
+        self.policy, self.repeat = policy, int(repeat)
+
+    def init(self, key, observation):
+        carry = self.policy.init(key, observation)
+        held = jnp.zeros((observation.shape[0], 2), observation.dtype)
+        return {**carry, '_held': held, '_count': jnp.zeros((), jnp.int32)}
+
+    def act(self, key, carry, observation):
+        held, count = carry['_held'], carry['_count']
+        inner = {k: v for k, v in carry.items() if k not in ('_held', '_count')}
+        action, inner = self.policy.act(key, inner, observation)
+        decide = count % self.repeat == 0
+        action = jnp.where(decide, action, held.astype(action.dtype))
+        return action, {**inner, '_held': action, '_count': count + 1}
+
 
 
 def main():
@@ -104,6 +135,7 @@ def main():
                     camera_policy = A.GreedyCameraPolicy.from_env(env)
                 else:
                     kwargs = dict(kwargs)
+                    repeat = kwargs.pop('action_repeat', 1)
                     forecaster = kwargs.pop('forecaster', None)
                     if forecaster is None:
                         camera_policy = ForesightCameraPolicy.from_env(env, grid_size=args.grid_size, **kwargs)
@@ -112,6 +144,8 @@ def main():
                         camera_policy = camera_policy.replace(
                             forecaster_params=load_forecaster(forecaster.format(targets=target), camera_policy)
                         )
+                    if repeat > 1:
+                        camera_policy = ActionRepeat(camera_policy, repeat)
                 coverage, real, agents = [], [], []
                 start = time.perf_counter()
                 for seed in args.seeds:

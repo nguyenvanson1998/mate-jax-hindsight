@@ -13,6 +13,7 @@ It does not touch the other generated files (their bold / underline marks were s
 
 import json
 import os
+import re
 
 import numpy as np
 from scipy import stats
@@ -397,6 +398,31 @@ def write_rows(name, lines):
         file.write('\n'.join(lines) + '\n')
 
 
+def remark(lines):
+    """Bold for the best and underline for the second best coverage of every column, among the controller rows above the
+    first rule that do not use oracle information (rows that start with an indented '+')."""
+
+    strip = lambda c: re.sub(r'\\(textbf|underline)\{([^}]*)\}', r'\2', c)
+    end = next((i for i, line in enumerate(lines) if line.startswith('\\midrule')), len(lines))
+    rows = [line[:-len(' \\\\')].split(' & ') for line in lines]
+    controllers = [i for i in range(end) if not rows[i][0].startswith('\\quad') and not rows[i][0].startswith('\\multicolumn')]
+    for c in range(1, len(rows[0])):
+        values = []
+        for i in controllers:
+            rows[i][c] = strip(rows[i][c])
+            try:
+                values.append((float(rows[i][c]), i))
+            except ValueError:
+                pass
+        ranked = sorted({v for v, _ in values}, reverse=True)
+        for v, i in values:
+            if v == ranked[0]:
+                rows[i][c] = f'\\textbf{{{rows[i][c]}}}'
+            elif len(ranked) > 1 and v == ranked[1]:
+                rows[i][c] = f'\\underline{{{rows[i][c]}}}'
+    return [(' & '.join(r) + ' \\\\') if not lines[k].startswith('\\midrule') else lines[k] for k, r in enumerate(rows)]
+
+
 def derived_tables():
     bound = rows_by(load('paper/bound_dual_4v8.json'), key='mode')
 
@@ -408,9 +434,28 @@ def derived_tables():
                          ('Lagrangian bound (clairvoyant, from above)', 'Lagrangian bound (upper bound on the optimum)')])
            for line in read_rows('v2_table_gap.tex')]
     blurred = blur_oracle()
+    paper = os.path.join(os.path.dirname(__file__), '..', 'mate', 'results', 'paper')
+    blur8 = ['--', '--']
+    if os.path.exists(os.path.join(paper, 'headroom_blur_8v8.json')):
+        rows8 = {(r['targets'], r['mode']): r for r in json.load(open(os.path.join(paper, 'headroom_blur_8v8.json')))}
+        blur8 = [f'{rows8[(t, "oracle-future-blur-0.5")]["coverage"]:.3f}' for t in TARGETS]
+        for t in TARGETS:
+            macro(f'BlurEight{SHORT[t]}', rows8[(t, 'oracle-future-blur-0.5')]['coverage'], 3)
+            macro(f'BlurEightGain{SHORT[t]}', f'{rows8[(t, "oracle-future-blur-0.5")]["delta_vs_foresight"]:+.3f}')
     index = max(i for i, line in enumerate(gap) if line.startswith('\\quad + true future positions'))
     gap.insert(index + 1, ' & '.join(['\\quad + true future positions spread over half a cell']
-                                     + [f'{blurred[t]:.3f}' for t in TARGETS] + ['--', '--']) + ' \\\\')
+                                     + [f'{blurred[t]:.3f}' for t in TARGETS] + blur8) + ' \\\\')
+    if os.path.exists(os.path.join(paper, 'forecast_8v8.json')):
+        rows8 = {(r['targets'], r['variant']): r for r in json.load(open(os.path.join(paper, 'forecast_8v8.json')))}
+        i = next(i for i, line in enumerate(gap) if line.startswith('\\FS, 2 rounds, learned forecaster'))
+        cells = gap[i][:-len(' \\\\')].split(' & ')
+        cells[3:5] = [f'{rows8[(t, "traj-2-forecast")]["coverage"]:.3f}' for t in TARGETS]
+        gap[i] = ' & '.join(cells) + ' \\\\'
+        for t in TARGETS:
+            r = rows8[(t, 'traj-2-forecast')]
+            macro(f'FcEight{SHORT[t]}', r['coverage'], 3)
+            macro(f'FcEightGain{SHORT[t]}', f'{r["paired_delta"]:+.3f}')
+    gap = remark(gap)
     write_rows('simpat_table_gap.tex', gap)
 
     # Main table: no Jain column (0.99--1.00 for every controller), no learned FORESIGHT, Lagrangian bound added.
@@ -426,16 +471,19 @@ def derived_tables():
             assert jain in ('--', '1.00', '0.99', '0.98') or jain.startswith('\\'), jain
             line = ' & '.join(cells) + ' \\\\'
         line = rename(line, [('Hindsight bound (clairvoyant)', 'Hindsight bound')])
+        if line.startswith(('Hindsight bound', 'HiT-MAC')):
+            line = line.replace(' & --', ' & n/a')
         main.append(line)
         if line.startswith('Hindsight bound'):
             main.append(' & '.join(['Lagrangian bound'] + [f'{bound[(t, "clairvoyant-dp")]["dual_bound"]:.3f}' for t in TARGETS]
-                                   + ['--'] * 4) + ' \\\\')
+                                   + ['n/a'] * 4) + ' \\\\')
     write_rows('simpat_table_main.tex', main)
 
     # Ablation table: the hybrid memory equals the shared memory without loss (said in the text).
     ablation = [rename(line, [('Trajectories, 1 round', '\\FS, 1 round'), ('Trajectories, 3 rounds', '\\FS, 3 rounds'),
                               ('+ learned forecaster', '\\FS, 2 rounds, learned forecaster')])
                 for line in read_rows('v2_table_ablation.tex') if not line.startswith('Hybrid memory')]
+    ablation = [line.replace(' & --', ' & ref.') if '(reference)' in line else line for line in ablation]
     ablation.insert(1, zoom_control())
     write_rows('simpat_table_ablation.tex', ablation)
 
@@ -665,10 +713,13 @@ def sensitivity_tables():
         cells = [label]
         for t in TARGETS:
             option, fs = rows[(t, 'foresight')]['coverage'], rows[(t, 'traj-2')]['coverage']
-            rule = rows.get((t, 'greedy'))
-            cells += [f'{rule["coverage"]:.3f}' if rule is not None and not label.startswith('Grid') else '--',
-                      f'{option:.3f}', f'{fs:.3f}']
-            if bound is not None:
+            # The rule-based cameras and the bounds do not use belief maps: for other grids they are those of the default.
+            rule = main[(t, 'greedy')] if label.startswith('Grid') else rows.get((t, 'greedy'))
+            cells += [f'{rule["coverage"]:.3f}' if rule is not None else '--', f'{option:.3f}', f'{fs:.3f}']
+            if bound is None and label.startswith('Grid'):
+                b = default_bound[(t, 'clairvoyant-dp')]
+                cells += [f'{b["coverage"]:.3f}', f'{b["dual_bound"]:.3f}']
+            elif bound is not None:
                 b = bound[(t, 'clairvoyant-dp')]
                 cells += [f'{b["coverage"]:.3f}', f'{b["dual_bound"]:.3f}']
                 if label.startswith('Step'):
@@ -778,13 +829,14 @@ CONFIG_TITLES = {'4v8': '4 cameras, 8 targets', '8v8': '8 cameras, 8 targets', '
 def cells_checks():
     path = os.path.join(os.path.dirname(__file__), '..', 'mate', 'results', 'paper')
     by_targets = lambda name: {r['targets']: r for r in json.load(open(os.path.join(path, name)))}
-    lines, extra, widest = [], [], []
+    lines, extra, widest, fine_gain = [], [], [], []
     for config in ('4v8', '8v8', '8v16', '16v32'):
         name = f'bound_cells_{config}.json'
         if not os.path.exists(os.path.join(path, name)):
             continue
         cells, lattice = by_targets(name), by_targets(f'bound_dual_{config}.json')
-        cells2 = by_targets('bound_cells2_4v8.json') if config == '4v8' and os.path.exists(os.path.join(path, 'bound_cells2_4v8.json')) else None
+        fine_name = f'bound_cells2_{config}.json'
+        cells2 = by_targets(fine_name) if os.path.exists(os.path.join(path, fine_name)) else None
         lines.append(f'\\multicolumn{{8}}{{l}}{{\\emph{{{CONFIG_TITLES[config]}}}}} \\\\')
         for t in TARGETS:
             low = np.asarray(cells[t]['per_episode_coverage'])
@@ -797,9 +849,11 @@ def cells_checks():
                 fine = np.asarray(cells2[t]['per_episode_dual_bound'])
                 low2 = np.asarray(cells2[t]['per_episode_coverage'])
                 cells_fine = f'{fine.mean():.3f}'
-                macro(f'CellFine{SHORT[t]}', fine.mean(), 3)
-                macro(f'CellFineWidth{SHORT[t]}', (fine - np.maximum(low, low2)).mean(), 3)
-                macro(f'LatFineLow{SHORT[t]}', low2.mean(), 3)
+                if config == '4v8':
+                    macro(f'CellFine{SHORT[t]}', fine.mean(), 3)
+                    macro(f'CellFineWidth{SHORT[t]}', (fine - np.maximum(low, low2)).mean(), 3)
+                    macro(f'LatFineLow{SHORT[t]}', low2.mean(), 3)
+                fine_gain.append((up - fine).mean())
             lines.append(' & '.join(['\\quad ' + TARGET_TITLES[t].split(' ')[0] if t == 'greedy' else '\\quad RWP',
                                      f'{low.mean():.3f}', f'{up_lat.mean():.3f}', f'{up.mean():.3f}', cells_fine,
                                      ('0.000' if abs((up - up_lat).mean()) < 5e-4 else f'{(up - up_lat).mean():+.3f}'), f'{width.mean():.3f}', f'{width.max():.3f}']) + ' \\\\')
@@ -815,6 +869,8 @@ def cells_checks():
             file.write('\n'.join(lines) + '\n')
         macro('CellWidthMaxMean', max(widest), 3)
         macro('CellExtraMax', max(extra), 3)
+        if fine_gain:
+            macro('CellFineGainMax', max(fine_gain), 3)
         print(f'cells: mean widths {np.round(widest, 3)}, extra over the lattice bound {np.round(extra, 4)}')
 
     # Certified gaps of the controllers run in the simulator with opaque obstacles (four cameras).
@@ -864,6 +920,22 @@ def cells_checks():
         print('pair width parts: ' + ', '.join(f'{k} {min(v):.4f}..{max(v):.4f}' for k, v in parts.items()))
 
 
+def control_interval():
+    """FORESIGHT with every command held for five steps, the control interval of the MARL baselines."""
+
+    name = os.path.join(os.path.dirname(__file__), '..', 'mate', 'results', 'paper', 'control_interval_4v8.json')
+    if not os.path.exists(name):
+        return
+    rows = {(r['targets'], r['variant']): r for r in json.load(open(name))}
+    for t in TARGETS:
+        r = rows[(t, 'traj-2-forecast-repeat-5')]
+        tag = SHORT[t]
+        macro(f'RepeatFs{tag}', r['coverage'], 3)
+        macro(f'RepeatDelta{tag}', f'{r["paired_delta"]:+.3f}')
+        macro(f'RepeatDeltaSe{tag}', r['paired_delta_se'], 3)
+        print(f'control interval {t}: {r["coverage"]:.4f} ({r["paired_delta"]:+.4f} +- {r["paired_delta_se"]:.4f})')
+
+
 def main():
     paired_table()
     burst_figure()
@@ -878,6 +950,7 @@ def main():
     sensitivity_tables()
     extra_checks()
     cells_checks()
+    control_interval()
     with open(os.path.join(GENERATED, 'simpat_macros.tex'), 'w', encoding='UTF-8') as file:
         file.write('\n'.join(f'\\newcommand{{\\{k}}}{{{v}}}' for k, v in sorted(MACROS.items())) + '\n')
     for key, value in sorted(MACROS.items()):

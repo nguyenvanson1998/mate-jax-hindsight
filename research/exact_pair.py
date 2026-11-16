@@ -48,14 +48,14 @@ def make_pair_dp(env, num_steps, cells=False):
     cfg = env.config
     rotation, zooming = cfg.camera_rotation_step, cfg.camera_zooming_step
     num_orientations = int(round(360.0 / rotation))
-    num_views = int((MAX_CAMERA_VIEWING_ANGLE - cfg.camera_min_viewing_angle) / zooming) + 2
+    num_views = int((MAX_CAMERA_VIEWING_ANGLE - cfg.camera_min_viewing_angle) / zooming) + 2 + (1 if cells else 0)
 
     def lattice(location, theta0, view0, targets, obstacle_location, obstacle_radius):
         orientation = theta0 + rotation * jnp.arange(num_orientations)
-        j0 = jnp.floor((view0 - cfg.camera_min_viewing_angle) / zooming + 1e-6).astype(jnp.int32)
+        j0 = jnp.floor((view0 - cfg.camera_min_viewing_angle) / zooming + 1e-6).astype(jnp.int32) + (1 if cells else 0)
         viewing = view0 + zooming * (jnp.arange(num_views) - j0)
         if cells:
-            valid = jnp.maximum(viewing, cfg.camera_min_viewing_angle) <= jnp.minimum(viewing + zooming, MAX_CAMERA_VIEWING_ANGLE) + 1e-6
+            valid = (viewing + zooming > cfg.camera_min_viewing_angle + 1e-9) & (viewing <= MAX_CAMERA_VIEWING_ANGLE + 1e-9)
         else:
             valid = (viewing >= cfg.camera_min_viewing_angle - 1e-6) & (viewing <= MAX_CAMERA_VIEWING_ANGLE + 1e-6)
         sight = jnp.sqrt(env.camera_area_product / jnp.maximum(viewing, 1e-3))

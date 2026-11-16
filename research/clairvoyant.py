@@ -77,16 +77,21 @@ def make_camera_dp(env, num_steps, refine=1, cells=False):
     rotation, zooming = cfg.camera_rotation_step / refine, cfg.camera_zooming_step / refine
     num_orientations = int(round(360.0 / rotation))
     num_views = int(np.ceil((MAX_CAMERA_VIEWING_ANGLE - cfg.camera_min_viewing_angle) / zooming - 1e-6)) + 2
+    if cells:
+        # One more cell below: when the initial viewing angle is not on the grid, the lowest cell is cut by the minimum
+        # viewing angle, and without it the poses between the minimum and the first grid edge would belong to no cell.
+        num_views += 1
     moves_1d = list(range(-refine, refine + 1))
 
     def dp(location, theta0, view0, targets, weights, obstacle_location, obstacle_radius):
         orientation = theta0 + rotation * jnp.arange(num_orientations)  # (O,) lattice poses or cell lower edges
-        j0 = jnp.floor((view0 - cfg.camera_min_viewing_angle) / zooming + 1e-6).astype(jnp.int32)
-        viewing = view0 + zooming * (jnp.arange(num_views) - j0)  # (V,)
+        j0 = jnp.floor((view0 - cfg.camera_min_viewing_angle) / zooming + 1e-6).astype(jnp.int32) + (1 if cells else 0)
+        viewing = view0 + zooming * (jnp.arange(num_views) - j0)  # (V,) lattice poses or cell lower edges
         if cells:
+            # half-open cells [viewing, viewing + zooming) cut to the range [min, max]; together they cover the range
             view_lo = jnp.maximum(viewing, cfg.camera_min_viewing_angle)
             view_hi = jnp.minimum(viewing + zooming, MAX_CAMERA_VIEWING_ANGLE)
-            valid = view_lo <= view_hi + 1e-6
+            valid = (viewing + zooming > cfg.camera_min_viewing_angle + 1e-9) & (viewing <= MAX_CAMERA_VIEWING_ANGLE + 1e-9)
         else:
             valid = (viewing >= cfg.camera_min_viewing_angle - 1e-6) & (viewing <= MAX_CAMERA_VIEWING_ANGLE + 1e-6)
             sight = jnp.sqrt(env.camera_area_product / jnp.maximum(viewing, 1e-3))

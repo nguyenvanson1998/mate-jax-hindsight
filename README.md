@@ -175,6 +175,13 @@ python3 research/exact_pair.py --config MATE-4v8-9.yaml --targets greedy waypoin
     --num-steps 1000 --key-steps 1000 --dual-iterations 150 --cells --env-json '{"obstacle": {"transmittance": 0.0}}' \
     --out results/paper/exact_pair_cells_4v8.json
 
+# Tests of the bound over cells (a counterexample with an off-grid initial viewing angle, random continuous schedules)
+python3 tests/jax/test_cell_bound.py
+
+# FORESIGHT with every command held for five steps (the control interval of the MARL baselines)
+python3 research/eval_foresight.py --configs MATE-4v8-9.yaml --targets greedy waypoint --num-envs 32 --num-steps 1000 \
+    --seeds 0 --variants traj-2-forecast traj-2-forecast-repeat-5 --reference traj-2-forecast --out results/paper/control_interval_4v8.json
+
 # Exact optimum for three cameras on a coarser lattice (20 and 10 degrees per step), against both bounds
 python3 research/exact_triple.py --config MATE-4v8-9.yaml --targets greedy waypoint --triples 0,1,2 1,2,3 \
     --num-envs 32 --num-steps 1000 --key-steps 1000 --dual-iterations 150 --self-test --out results/paper/exact_triple_4v8.json
