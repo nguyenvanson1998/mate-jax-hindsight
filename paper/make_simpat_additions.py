@@ -361,6 +361,8 @@ def opaque_macros():
         macro(f'OpaqueGapUpper{tag}', float(upper.mean() - forecast))
         macro(f'OpaqueClosedFc{tag}', 100.0 * float((forecast - option) / (lower.mean() - option)), 0)
         macro(f'OpaqueClosedDual{tag}', 100.0 * float((forecast - option) / (upper.mean() - option)), 0)
+        cell_upper = float(rows_by(load('paper/bound_cells_4v8.json'), key='mode')[(target, 'clairvoyant-dp')]['dual_bound'])
+        macro(f'OpaqueClosedCell{tag}', 100.0 * float((forecast - option) / (cell_upper - option)), 0)
         macro(f'OpaqueFcLoss{tag}', float((episodes(standard[(target, 'traj-2-forecast')]) - episodes(opaque[(target, 'traj-2-forecast')])).mean()))
     macro('OpaqueReplayDiff', float(np.ceil(1e4 * max(replay)) / 1e4), 4)
     macro('OpaquePlannerLossMin', float(min(planner_loss)))
@@ -431,7 +433,7 @@ def derived_tables():
                          ('Trajectories, 2 rounds', '\\FS, 2 rounds, analytic forecasts'),
                          ('\\quad + learned forecaster', '\\FS, 2 rounds, learned forecaster'),
                          ('Hindsight bound (clairvoyant DP)', 'Hindsight bound (feasible clairvoyant schedule)'),
-                         ('Lagrangian bound (clairvoyant, from above)', 'Lagrangian bound (upper bound on the optimum)')])
+                         ('Lagrangian bound (clairvoyant, from above)', 'Lattice Lagrangian bound (upper bound on the lattice optimum)')])
            for line in read_rows('v2_table_gap.tex')]
     blurred = blur_oracle()
     paper = os.path.join(os.path.dirname(__file__), '..', 'mate', 'results', 'paper')
@@ -455,6 +457,11 @@ def derived_tables():
             r = rows8[(t, 'traj-2-forecast')]
             macro(f'FcEight{SHORT[t]}', r['coverage'], 3)
             macro(f'FcEightGain{SHORT[t]}', f'{r["paired_delta"]:+.3f}')
+    i = next(i for i, line in enumerate(gap) if line.startswith('Lattice Lagrangian bound'))
+    cell_upper = [rows_by(load(f'paper/bound_cells_{c}.json'), key='mode')[(t, 'clairvoyant-dp')]['dual_bound']
+                  for c in ('4v8', '8v8') for t in TARGETS]
+    gap.insert(i + 1, ' & '.join(['Lagrangian bound over cells (upper bound for continuous poses)']
+                                 + [f'{v:.3f}' for v in cell_upper]) + ' \\\\')
     gap = remark(gap)
     write_rows('simpat_table_gap.tex', gap)
 
@@ -475,7 +482,10 @@ def derived_tables():
             line = line.replace(' & --', ' & n/a')
         main.append(line)
         if line.startswith('Hindsight bound'):
-            main.append(' & '.join(['Lagrangian bound'] + [f'{bound[(t, "clairvoyant-dp")]["dual_bound"]:.3f}' for t in TARGETS]
+            main.append(' & '.join(['Lattice Lagrangian bound'] + [f'{bound[(t, "clairvoyant-dp")]["dual_bound"]:.3f}' for t in TARGETS]
+                                   + ['n/a'] * 4) + ' \\\\')
+            cell = rows_by(load('paper/bound_cells_4v8.json'), key='mode')
+            main.append(' & '.join(['Lagrangian bound over cells'] + [f'{cell[(t, "clairvoyant-dp")]["dual_bound"]:.3f}' for t in TARGETS]
                                    + ['n/a'] * 4) + ' \\\\')
     write_rows('simpat_table_main.tex', main)
 
@@ -491,10 +501,10 @@ def derived_tables():
     scale = [rename(line, [('Trajectories, 1 round', '\\FS, 1 round'), ('Trajectories, 2 rounds', '\\FS, 2 rounds'),
                            ('No communication', '\\FS, no communication'),
                            ('Published intents, every 4th step', '\\FS, published every 4th step'),
-                           ('Lagrangian bound (from above)', 'Lagrangian bound'),
+                           ('Lagrangian bound (from above)', 'Lattice Lagrangian bound'),
                            ('Gap closed (2 rounds)', 'Gap closed, hindsight bound')])
              for line in read_rows('v2_table_scale.tex') if not line.startswith('Learned')]
-    cells, check = ['Gap closed, Lagrangian bound'], []
+    cells, check = ['Gap closed, lattice Lagrangian bound'], []
     for config in ('4v8', '8v8', '8v16', '16v32'):
         rows = rows_by(load(f'paper/main_{config}.json'))
         if config in ('4v8', '8v8'):
@@ -522,18 +532,20 @@ def closed_table():
     columns = []
     for controllers, bounds in settings:
         rows, bound = rows_by(load(f'paper/{controllers}')), rows_by(load(f'paper/{bounds}'), key='mode')
+        cell = rows_by(load('paper/bound_cells_4v8.json'), key='mode')  # opaque obstacles, as the lattice bounds
         for t in TARGETS:
             option, full = rows[(t, 'foresight')]['coverage'], rows[(t, 'traj-2-forecast')]['coverage']
             lower, upper = bound[(t, 'clairvoyant-dp')]['coverage'], bound[(t, 'clairvoyant-dp')]['dual_bound']
-            columns.append((option, full, lower, upper, 100.0 * (full - option) / (lower - option),
-                            100.0 * (full - option) / (upper - option)))
-    labels = ['Option-level planning', '\\FS', 'Hindsight bound', 'Lagrangian bound']
+            upper_cell = cell[(t, 'clairvoyant-dp')]['dual_bound']
+            columns.append((option, full, lower, upper, upper_cell, 100.0 * (full - option) / (lower - option),
+                            100.0 * (full - option) / (upper - option), 100.0 * (full - option) / (upper_cell - option)))
+    labels = ['Option-level planning', '\\FS', 'Hindsight bound', 'Lattice Lagrangian bound', 'Lagrangian bound over cells']
     lines = [' & '.join([label] + [f'{c[i]:.3f}' for c in columns]) + ' \\\\' for i, label in enumerate(labels)]
     lines.append('\\midrule')
-    lines.append(' & '.join(['Gap closed, hindsight bound'] + [f'{c[4]:.0f}\\%' for c in columns]) + ' \\\\')
-    lines.append(' & '.join(['Gap closed, Lagrangian bound'] + [f'{c[5]:.0f}\\%' for c in columns]) + ' \\\\')
+    for i, label in enumerate(['hindsight bound', 'lattice Lagrangian bound', 'bound over cells']):
+        lines.append(' & '.join([f'Gap closed, {label}'] + [f'{c[5 + i]:.0f}\\%' for c in columns]) + ' \\\\')
     write_rows('simpat_table_closed.tex', lines)
-    print('gap closed:', [f'{c[4]:.1f}/{c[5]:.1f}' for c in columns])
+    print('gap closed:', [f'{c[5]:.1f}/{c[6]:.1f}/{c[7]:.1f}' for c in columns])
 
 
 def marl_figure():
@@ -934,6 +946,17 @@ def control_interval():
         macro(f'RepeatDelta{tag}', f'{r["paired_delta"]:+.3f}')
         macro(f'RepeatDeltaSe{tag}', r['paired_delta_se'], 3)
         print(f'control interval {t}: {r["coverage"]:.4f} ({r["paired_delta"]:+.4f} +- {r["paired_delta_se"]:.4f})')
+    # Row of the main table (network metrics for goal-directed targets, as the other rows).
+    g = rows[('greedy', 'traj-2-forecast-repeat-5')]['per_camera']
+    n = len(g['camera_bytes'])
+    row = ' & '.join(['\\quad every command held for 5 steps']
+                     + [f'{rows[(t, "traj-2-forecast-repeat-5")]["coverage"]:.3f}' for t in TARGETS]
+                     + [f'{sum(g["camera_unique_coverage"]):.2f}', f'{rows[("greedy", "traj-2-forecast-repeat-5")]["redundancy"]:.2f}',
+                        f'{(sum(g["camera_rotation"]) + sum(g["camera_zoom"])) / n:.2f}', f'{sum(g["camera_bytes"]) / n:.0f}']) + ' \\\\'
+    main = read_rows('simpat_table_main.tex')
+    i = next(i for i, line in enumerate(main) if line.startswith('FORESIGHT &'))
+    main.insert(i + 1, row)
+    write_rows('simpat_table_main.tex', main)
 
 
 def main():
